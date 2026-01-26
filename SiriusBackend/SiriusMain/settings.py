@@ -37,8 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'MainApp',
-    'User',
+    'authentication',
+    'surveys',
+    'recommendations',
     'rest_framework',
     'rest_framework.authtoken',
     'dj_rest_auth',
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'dj_rest_auth.registration',
     'corsheaders',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -144,10 +146,19 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Sirius API',
+    'DESCRIPTION': 'API для Sirius проекта',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 REST_AUTH = {
-    'REGISTER_SERIALIZER': 'User.serializers.CustomRegisterSerializer',
+    'REGISTER_SERIALIZER': 'authentication.serializers.CustomRegisterSerializer',
 }
 
 AUTHENTICATION_BACKENDS = [
@@ -161,4 +172,4 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 
-AUTH_USER_MODEL = 'User.User'
+AUTH_USER_MODEL = 'authentication.User'

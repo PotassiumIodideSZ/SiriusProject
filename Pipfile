@@ -10,6 +10,7 @@ django-rest-auth = "*"
 dj-rest-auth = "*"
 django-allauth = "*"
 requests = "*"
+drf-spectacular = "*"
 
 [dev-packages]
 
