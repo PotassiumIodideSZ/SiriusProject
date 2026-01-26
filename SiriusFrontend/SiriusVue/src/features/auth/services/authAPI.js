@@ -3,13 +3,15 @@ import { API_ENDPOINTS } from '@/core/config/constants'
 
 export const authAPI = {
   async register(userData) {
+    console.log(userData);
+    
     const response = await api.post(API_ENDPOINTS.AUTH.REGISTER, {
       username: userData.username,
       email: userData.email,
-      first_name: userData.firstName,
-      last_name: userData.lastName,
-      password1: userData.password,
-      password2: userData.password
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      password1: userData.password1,
+      password2: userData.password2
     })
     return response.data
   },

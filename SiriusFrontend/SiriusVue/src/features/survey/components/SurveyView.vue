@@ -72,6 +72,8 @@ import { SURVEY_OPTIONS } from '@/core/config/constants'
 
 const {
   currentQuestion,
+  currentQuestionIndex,
+  questions,
   progress,
   answers,
   isLastQuestion,
@@ -81,8 +83,6 @@ const {
   finishSurvey
 } = useSurvey()
 
-const questions = computed(() => currentQuestion.value ? [currentQuestion.value] : [])
-const currentQuestionIndex = computed(() => progress.value ? Math.floor(progress.value / 100 * 23) : 0)
 const options = SURVEY_OPTIONS
 </script>
 

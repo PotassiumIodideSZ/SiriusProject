@@ -49,7 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
         first_name: userData.firstName,
         last_name: userData.lastName,
         password1: userData.password,
-        password2: userData.password
+        password2: userData.confirmPassword
       })
       setToken(response.key)
       await fetchUserData()

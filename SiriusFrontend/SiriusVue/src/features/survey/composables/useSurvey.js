@@ -5,7 +5,9 @@ import { SURVEY_OPTIONS } from '@/core/config/constants'
 export function useSurvey() {
   const surveyStore = useSurveyStore()
   
+  const questions = computed(() => surveyStore.questions)
   const currentQuestion = computed(() => surveyStore.currentQuestion)
+  const currentQuestionIndex = computed(() => surveyStore.currentQuestionIndex)
   const progress = computed(() => surveyStore.progress)
   const answers = computed(() => surveyStore.answers)
   const isLastQuestion = computed(() => surveyStore.isLastQuestion)
@@ -33,7 +35,9 @@ export function useSurvey() {
   }
   
   return {
+    questions,
     currentQuestion,
+    currentQuestionIndex,
     progress,
     answers,
     isLastQuestion,
