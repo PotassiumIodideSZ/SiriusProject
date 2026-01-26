@@ -9,7 +9,20 @@ export const useProfileStore = defineStore('profile', () => {
   const error = ref(null)
   const isLoading = ref(false)
 
-  const riskScore = computed(() => stats.value?.risk_score || 0)
+  // Investment profile data
+  const investmentProfile = ref(null)
+  const riskCategory = ref(null)
+  const keyTraits = ref([])
+  const recommendations = ref([])
+  const assetAllocation = ref({})
+
+  const riskScore = computed(() => {
+    // Try to get from investment profile first, then from stats
+    if (investmentProfile.value?.risk_score !== undefined) {
+      return investmentProfile.value.risk_score
+    }
+    return stats.value?.risk_score || 0
+  })
   const surveysCompleted = computed(() => history.value?.length || 0)
 
   const fetchProfile = async () => {
@@ -70,17 +83,50 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  const fetchInvestmentProfile = async () => {
+    try {
+      isLoading.value = true
+      error.value = null
+      const data = await profileAPI.getInvestmentProfile()
+      investmentProfile.value = data
+      riskCategory.value = data.risk_category
+      keyTraits.value = data.key_traits || []
+      recommendations.value = data.recommendations || []
+      assetAllocation.value = data.asset_allocation || {}
+    } catch (err) {
+      // If profile not found (404), it's okay - user hasn't taken the test yet
+      if (err.response?.status === 404) {
+        investmentProfile.value = null
+        riskCategory.value = null
+        keyTraits.value = []
+        recommendations.value = []
+        assetAllocation.value = {}
+      } else {
+        error.value = err.response?.data || 'Ошибка при получении инвестиционного профиля'
+        console.error('Ошибка при получении инвестиционного профиля:', err)
+      }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     profile,
     stats,
     history,
     error,
     isLoading,
+    investmentProfile,
+    riskCategory,
+    keyTraits,
+    recommendations,
+    assetAllocation,
     riskScore,
     surveysCompleted,
     fetchProfile,
     updateProfile,
     fetchHistory,
-    fetchStats
+    fetchStats,
+    fetchInvestmentProfile
   }
 })

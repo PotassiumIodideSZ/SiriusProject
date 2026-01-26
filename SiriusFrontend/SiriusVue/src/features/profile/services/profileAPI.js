@@ -20,5 +20,10 @@ export const profileAPI = {
   async getStats() {
     const response = await api.get(API_ENDPOINTS.PROFILE.STATS)
     return response.data
+  },
+
+  async getInvestmentProfile() {
+    const response = await api.get(API_ENDPOINTS.RESULTS.INVESTMENT_PROFILE)
+    return response.data
   }
 }

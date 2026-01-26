@@ -11,6 +11,11 @@ export function useProfile() {
   const isLoading = computed(() => profileStore.isLoading)
   const riskScore = computed(() => profileStore.riskScore)
   const surveysCompleted = computed(() => profileStore.surveysCompleted)
+  const investmentProfile = computed(() => profileStore.investmentProfile)
+  const riskCategory = computed(() => profileStore.riskCategory)
+  const keyTraits = computed(() => profileStore.keyTraits)
+  const recommendations = computed(() => profileStore.recommendations)
+  const assetAllocation = computed(() => profileStore.assetAllocation)
   
   const fetchProfile = async () => {
     await profileStore.fetchProfile()
@@ -28,6 +33,10 @@ export function useProfile() {
     await profileStore.fetchStats()
   }
   
+  const fetchInvestmentProfile = async () => {
+    return await profileStore.fetchInvestmentProfile()
+  }
+  
   return {
     profile,
     stats,
@@ -36,9 +45,15 @@ export function useProfile() {
     isLoading,
     riskScore,
     surveysCompleted,
+    investmentProfile,
+    riskCategory,
+    keyTraits,
+    recommendations,
+    assetAllocation,
     fetchProfile,
     updateProfile,
     fetchHistory,
-    fetchStats
+    fetchStats,
+    fetchInvestmentProfile
   }
 }
