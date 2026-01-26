@@ -6,11 +6,24 @@
     </main>
     <TheFooter class="relative z-10" />
     <BackgroundCircles />
+    
+    <!-- Auth Modal - rendered at root level to avoid z-index stacking context issues -->
+    <AuthForm 
+      v-if="authStore.showLoginModal" 
+      v-model:isLogin="isLogin"
+      @close="authStore.showLoginModal = false"
+    />
   </div>
 </template>
 
 <script setup>
-import TheHeader from './components/layout/TheHeader.vue'
-import TheFooter from './components/layout/TheFooter.vue'
-import BackgroundCircles from './components/common/BackgroundCircles.vue'
+import { ref } from 'vue'
+import TheHeader from '@/layout/components/TheHeader.vue'
+import TheFooter from '@/layout/components/TheFooter.vue'
+import BackgroundCircles from '@/shared/components/BackgroundCircles.vue'
+import { AuthForm } from '@/features/auth'
+import { useAuthStore } from '@/features/auth/stores/authStore'
+
+const isLogin = ref(true)
+const authStore = useAuthStore()
 </script>

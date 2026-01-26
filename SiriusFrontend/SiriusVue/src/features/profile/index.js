@@ -1,0 +1,5 @@
+export { default as ProfileView } from './components/ProfileView.vue'
+export { useProfile } from './composables/useProfile.js'
+export { useProfileStore } from './stores/profileStore.js'
+export { profileAPI } from './services/profileAPI.js'
+export { profileRoutes } from './routes/index.js'

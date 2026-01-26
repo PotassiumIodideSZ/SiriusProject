@@ -1,0 +1,5 @@
+export { default as AuthForm } from './components/AuthForm.vue'
+export { useAuth } from './composables/useAuth.js'
+export { useAuthStore } from './stores/authStore.js'
+export { authAPI } from './services/authAPI.js'
+export { authRoutes } from './routes/index.js'

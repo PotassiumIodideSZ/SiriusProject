@@ -1,0 +1,5 @@
+export { default as ResultsView } from './components/ResultsView.vue'
+export { useResults } from './composables/useResults.js'
+export { useResultsStore } from './stores/resultsStore.js'
+export { resultsAPI } from './services/resultsAPI.js'
+export { resultsRoutes } from './routes/index.js'

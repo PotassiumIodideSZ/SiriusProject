@@ -1,0 +1,5 @@
+export { default as SurveyView } from './components/SurveyView.vue'
+export { useSurvey } from './composables/useSurvey.js'
+export { useSurveyStore } from './stores/surveyStore.js'
+export { surveyAPI } from './services/surveyAPI.js'
+export { surveyRoutes } from './routes/index.js'

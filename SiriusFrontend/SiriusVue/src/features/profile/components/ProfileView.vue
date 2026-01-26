@@ -18,7 +18,7 @@
         <div class="flex-1">
           <div class="flex justify-between items-start mb-8">
             <h1 class="text-2xl font-semibold text-white">
-              {{ user ? `${user.first_name} ${user.last_name}` : 'Загрузка...' }}
+              {{ profile ? `${profile.first_name} ${profile.last_name}` : 'Загрузка...' }}
             </h1>
             <router-link 
               to="/survey" 
@@ -32,11 +32,11 @@
           <!-- Статистика -->
           <div class="flex flex-wrap gap-8 justify-center">
             <div class="text-center">
-              <div class="text-3xl font-bold text-blue-500">72%</div>
+              <div class="text-3xl font-bold text-blue-500">{{ riskScore }}%</div>
               <div class="text-sm text-gray-400">Склонность к риску</div>
             </div>
             <div class="text-center">
-              <div class="text-3xl font-bold text-purple-500">3</div>
+              <div class="text-3xl font-bold text-purple-500">{{ surveysCompleted }}</div>
               <div class="text-sm text-gray-400">Пройдено тестов</div>
             </div>
           </div>
@@ -51,7 +51,7 @@
       <!-- Список анализов -->
       <div class="space-y-4">
         <div 
-          v-for="(analysis, index) in analyses" 
+          v-for="(analysis, index) in history" 
           :key="index"
           class="bg-[#1A1A1A] rounded-lg p-4 hover:bg-[#232323] transition cursor-pointer"
           @click="toggleAnalysis(index)"
@@ -76,14 +76,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '@/features/auth/stores/authStore'
+import { useProfile } from '../composables/useProfile'
 
-const authStore = useAuthStore()
-const user = computed(() => authStore.user)
+const { profile, riskScore, surveysCompleted, history, fetchProfile } = useProfile()
 
 onMounted(async () => {
-  if (!user.value) {
-    await authStore.fetchUserData()
+  if (!profile.value) {
+    await fetchProfile()
   }
 })
 
@@ -120,4 +119,4 @@ function toggleAnalysis(index) {
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
 }
-</style> 
+</style>
