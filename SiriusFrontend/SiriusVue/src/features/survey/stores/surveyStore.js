@@ -2,39 +2,14 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { surveyAPI } from '../services/surveyAPI'
-import { SURVEY_OPTIONS } from '@/core/config/constants'
 
 export const useSurveyStore = defineStore('survey', () => {
   const router = useRouter()
   
-  const questions = ref([
-    { text: 'Ваши логические умозаключения чаще всего обоснованны и правильны?' },
-    { text: 'Влияет ли чужое мнение на ваше мышление?' },
-    { text: 'Вы строите свою жизнь на основе обдуманных решений?' },
-    { text: 'Вы доверяете логическим умозаключениям?' },
-    { text: 'Появление оригинальной сильной идеи доставляет вам радость?' },
-    { text: 'Во время дискуссий вы чувствуете себя уверенно?' },
-    { text: 'Вас можно назвать вдумчивым человеком?' },
-    { text: 'Вас можно назвать эмоциональным человеком?' },
-    { text: 'Вы верите астрологам?' },
-    { text: 'Вас можно назвать суеверным человеком?' },
-    { text: 'Ваши чувства и эмоции управляют вами?' },
-    { text: 'Вы склонны к резкой смене настроения?' },
-    { text: 'Вы стремитесь обладать чем-либо или кем-либо единолично и безраздельно?' },
-    { text: 'Вас можно назвать скупым человеком?' },
-    { text: 'Вас можно назвать ответственным человеком?' },
-    { text: 'Вам легко дается руководить деятельностью других людей?' },
-    { text: 'Вас можно назвать независимым человеком?' },
-    { text: 'Способны ли вы самостоятельно и своевременно принимать ответственные решения?' },
-    { text: 'Свое поведение вы держите под контролем?' },
-    { text: 'Можно ли вас назвать настойчивым человеком?' },
-    { text: 'Начатые дела вы доводите до конца?' },
-    { text: 'Обладаете ли вы волевыми качествами?' },
-    { text: 'Вы можете вести за собой других людей?' }
-  ])
-  
+  const questions = ref([])
   const currentQuestionIndex = ref(0)
-  const answers = ref(new Array(questions.value.length).fill(null))
+  const answers = ref([])
+  const isLoading = ref(false)
   const isCompleted = ref(false)
   const error = ref(null)
 
@@ -42,6 +17,24 @@ export const useSurveyStore = defineStore('survey', () => {
   const progress = computed(() => ((currentQuestionIndex.value + 1) / questions.value.length * 100).toFixed(0))
   const isLastQuestion = computed(() => currentQuestionIndex.value === questions.value.length - 1)
   const canMoveNext = computed(() => answers.value[currentQuestionIndex.value] !== null)
+
+  const fetchQuestions = async () => {
+    try {
+      isLoading.value = true
+      error.value = null
+      const data = await surveyAPI.getQuestions()
+      questions.value = data.questions || []
+      // Initialize answers array with null values
+      answers.value = new Array(questions.value.length).fill(null)
+      return questions.value
+    } catch (err) {
+      error.value = err.response?.data?.detail || 'Не удалось загрузить вопросы'
+      console.error('Ошибка при загрузке вопросов:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
 
   const nextQuestion = () => {
     if (currentQuestionIndex.value < questions.value.length - 1) {
@@ -61,14 +54,28 @@ export const useSurveyStore = defineStore('survey', () => {
 
   const finishSurvey = async () => {
     try {
+      isLoading.value = true
       error.value = null
-      const result = await surveyAPI.submitSurvey(answers.value)
+      
+      // Transform answers to new format: [{question_id: 1, answer_value: 5}, ...]
+      const answersArray = []
+      questions.value.forEach((question, index) => {
+        answersArray.push({
+          question_id: question.id,
+          answer_value: answers.value[index]
+        })
+      })
+      
+      const result = await surveyAPI.submitSurvey(answersArray)
       isCompleted.value = true
       router.push('/results')
       return result
     } catch (err) {
-      error.value = err.response?.data || 'Произошла ошибка при отправке опроса'
+      error.value = err.response?.data?.detail || 'Произошла ошибка при отправке опроса'
       console.error('Ошибка при отправке опроса:', err)
+      throw err
+    } finally {
+      isLoading.value = false
     }
   }
 
@@ -83,12 +90,14 @@ export const useSurveyStore = defineStore('survey', () => {
     questions,
     currentQuestionIndex,
     answers,
+    isLoading,
     isCompleted,
     error,
     currentQuestion,
     progress,
     isLastQuestion,
     canMoveNext,
+    fetchQuestions,
     nextQuestion,
     previousQuestion,
     submitAnswer,

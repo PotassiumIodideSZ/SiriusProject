@@ -15,7 +15,8 @@ const routes = [
   {
     path: '/survey/',
     name: 'Survey',
-    component: () => import('../views/SurveyView.vue')
+    component: () => import('../features/survey/components/SurveyView.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/results/',

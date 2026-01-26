@@ -3,8 +3,29 @@
     <div class="max-w-3xl mx-auto">
       <h1 class="text-3xl font-bold text-white text-center mb-8">Анкета</h1>
       
-      <!-- Карточка с вопросом -->
-      <div class="bg-[#1A1A1A] rounded-xl p-8">
+      <!-- Loading state -->
+      <div v-if="isLoading" class="bg-[#1A1A1A] rounded-xl p-8 text-center">
+        <div class="text-gray-400">Загрузка вопросов...</div>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="error" class="bg-[#1A1A1A] rounded-xl p-8 text-center">
+        <div class="text-red-400 mb-4">{{ error }}</div>
+        <button 
+          @click="startSurvey" 
+          class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+        >
+          Попробовать снова
+        </button>
+      </div>
+
+      <!-- No questions state -->
+      <div v-else-if="questions.length === 0" class="bg-[#1A1A1A] rounded-xl p-8 text-center">
+        <div class="text-gray-400">Нет доступных вопросов</div>
+      </div>
+
+      <!-- Survey questions -->
+      <div v-else class="bg-[#1A1A1A] rounded-xl p-8">
         <!-- Счетчик вопросов -->
         <div class="flex justify-between items-center mb-6">
           <span class="text-gray-400">
@@ -43,7 +64,7 @@
         <div class="flex justify-between items-center">
           <button 
             @click="previousQuestion" 
-            :disabled="currentQuestionIndex === 0"
+            :disabled="currentQuestionIndex === 0 || isLoading"
             class="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition flex items-center gap-2"
           >
             <i class="fas fa-arrow-left"></i>
@@ -53,7 +74,7 @@
           <!-- Кнопка Далее/Завершить -->
           <button 
             @click="isLastQuestion ? finishSurvey() : nextQuestion()" 
-            :disabled="!canMoveNext"
+            :disabled="!canMoveNext || isLoading"
             class="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition flex items-center gap-2"
           >
             {{ isLastQuestion ? 'Завершить' : 'Далее' }}
@@ -66,7 +87,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useSurvey } from '../composables/useSurvey'
 import { SURVEY_OPTIONS } from '@/core/config/constants'
 
@@ -76,14 +97,22 @@ const {
   questions,
   progress,
   answers,
+  isLoading,
   isLastQuestion,
   canMoveNext,
+  error,
+  startSurvey,
   nextQuestion,
   previousQuestion,
   finishSurvey
 } = useSurvey()
 
 const options = SURVEY_OPTIONS
+
+// Load questions when component mounts
+onMounted(() => {
+  startSurvey()
+})
 </script>
 
 <style scoped>

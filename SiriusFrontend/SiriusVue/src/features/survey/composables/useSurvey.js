@@ -1,6 +1,5 @@
 import { computed } from 'vue'
 import { useSurveyStore } from '../stores/surveyStore'
-import { SURVEY_OPTIONS } from '@/core/config/constants'
 
 export function useSurvey() {
   const surveyStore = useSurveyStore()
@@ -10,12 +9,14 @@ export function useSurvey() {
   const currentQuestionIndex = computed(() => surveyStore.currentQuestionIndex)
   const progress = computed(() => surveyStore.progress)
   const answers = computed(() => surveyStore.answers)
+  const isLoading = computed(() => surveyStore.isLoading)
   const isLastQuestion = computed(() => surveyStore.isLastQuestion)
   const canMoveNext = computed(() => surveyStore.canMoveNext)
   const error = computed(() => surveyStore.error)
   
-  const startSurvey = () => {
+  const startSurvey = async () => {
     surveyStore.resetSurvey()
+    return await surveyStore.fetchQuestions()
   }
   
   const nextQuestion = () => {
@@ -40,6 +41,7 @@ export function useSurvey() {
     currentQuestionIndex,
     progress,
     answers,
+    isLoading,
     isLastQuestion,
     canMoveNext,
     error,

@@ -8,6 +8,7 @@ export const surveyAPI = {
   },
 
   async submitSurvey(answers) {
+    // answers should be an array: [{question_id: 1, answer_value: 5}, ...]
     const response = await api.post(API_ENDPOINTS.SURVEY.SUBMIT, { answers })
     return response.data
   },
