@@ -1,5 +1,6 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets, permissions
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from .models import User
 from .serializers import UserSerializer
@@ -20,10 +21,29 @@ class UserViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         """
-        Filter queryset to only return the current user.
+        Filter queryset to only return current user.
         """
         return User.objects.filter(id=self.request.user.id)
+
+
+class UserProfileView(APIView):
+    """
+    API view to get current user's profile.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary='Get current user profile',
+        tags=['Users'],
+        responses={200: UserSerializer}
+    )
+    def get(self, request):
+        """
+        Return current user's profile.
+        """
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)

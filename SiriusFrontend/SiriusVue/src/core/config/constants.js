@@ -26,7 +26,8 @@ export const API_ENDPOINTS = {
   },
   RESULTS: {
     GET: '/results/',
-    RECOMMENDATIONS: '/results/recommendations/'
+    RECOMMENDATIONS: '/results/recommendations/',
+    INVESTMENT_PROFILE: '/recommendations/profile/'
   }
 }
 
@@ -53,5 +54,6 @@ export const SURVEY_OPTIONS = [
 export const STORAGE_KEYS = {
   TOKEN: 'token',
   USER: 'user',
-  SURVEY_ANSWERS: 'survey_answers'
+  SURVEY_ANSWERS: 'survey_answers',
+  RISK_PROFILE: 'riskProfile'
 }

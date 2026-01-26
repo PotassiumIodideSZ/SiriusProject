@@ -6,6 +6,9 @@ export const useResultsStore = defineStore('results', () => {
   const results = ref(null)
   const recommendations = ref([])
   const riskScore = ref(0)
+  const riskCategory = ref('')
+  const assetAllocation = ref(null)
+  const keyTraits = ref([])
   const error = ref(null)
   const isLoading = ref(false)
 
@@ -38,6 +41,44 @@ export const useResultsStore = defineStore('results', () => {
     }
   }
 
+  const fetchInvestmentProfile = async () => {
+    try {
+      isLoading.value = true
+      error.value = null
+      const data = await resultsAPI.getInvestmentProfile()
+      
+      // Store all profile data
+      results.value = data
+      riskScore.value = data.risk_score || 0
+      riskCategory.value = data.risk_category || ''
+      recommendations.value = data.recommendations || []
+      assetAllocation.value = data.asset_allocation || null
+      keyTraits.value = data.key_traits || []
+      
+      return data
+    } catch (err) {
+      error.value = err.response?.data || 'Ошибка при получении инвестиционного профиля'
+      console.error('Ошибка при получении инвестиционного профиля:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const loadInvestmentProfileFromStorage = () => {
+    const profile = resultsAPI.getInvestmentProfileFromStorage()
+    if (profile) {
+      results.value = profile
+      riskScore.value = profile.risk_score || 0
+      riskCategory.value = profile.risk_category || ''
+      recommendations.value = profile.recommendations || []
+      assetAllocation.value = profile.asset_allocation || null
+      keyTraits.value = profile.key_traits || []
+      return true
+    }
+    return false
+  }
+
   const calculateRiskScore = (answers) => {
     // Простая логика для расчета риска
     // В реальном приложении это будет сделано на бэкенде
@@ -51,6 +92,9 @@ export const useResultsStore = defineStore('results', () => {
     results.value = null
     recommendations.value = []
     riskScore.value = 0
+    riskCategory.value = ''
+    assetAllocation.value = null
+    keyTraits.value = []
     error.value = null
   }
 
@@ -58,10 +102,15 @@ export const useResultsStore = defineStore('results', () => {
     results,
     recommendations,
     riskScore,
+    riskCategory,
+    assetAllocation,
+    keyTraits,
     error,
     isLoading,
     fetchResults,
     fetchRecommendations,
+    fetchInvestmentProfile,
+    loadInvestmentProfileFromStorage,
     calculateRiskScore,
     resetResults
   }

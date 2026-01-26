@@ -68,6 +68,12 @@ export const useSurveyStore = defineStore('survey', () => {
       
       const result = await surveyAPI.submitSurvey(answersArray)
       isCompleted.value = true
+      
+      // Store the risk profile data for the results page
+      if (result.risk_profile) {
+        localStorage.setItem('riskProfile', JSON.stringify(result.risk_profile))
+      }
+      
       router.push('/results')
       return result
     } catch (err) {

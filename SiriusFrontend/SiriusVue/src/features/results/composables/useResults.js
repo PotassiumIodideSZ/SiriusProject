@@ -7,6 +7,9 @@ export function useResults() {
   const results = computed(() => resultsStore.results)
   const recommendations = computed(() => resultsStore.recommendations)
   const riskScore = computed(() => resultsStore.riskScore)
+  const riskCategory = computed(() => resultsStore.riskCategory)
+  const assetAllocation = computed(() => resultsStore.assetAllocation)
+  const keyTraits = computed(() => resultsStore.keyTraits)
   const error = computed(() => resultsStore.error)
   const isLoading = computed(() => resultsStore.isLoading)
   
@@ -16,6 +19,14 @@ export function useResults() {
   
   const fetchRecommendations = async (surveyId) => {
     await resultsStore.fetchRecommendations(surveyId)
+  }
+  
+  const fetchInvestmentProfile = async () => {
+    return await resultsStore.fetchInvestmentProfile()
+  }
+  
+  const loadInvestmentProfileFromStorage = () => {
+    return resultsStore.loadInvestmentProfileFromStorage()
   }
   
   const calculateRiskScore = (answers) => {
@@ -30,10 +41,15 @@ export function useResults() {
     results,
     recommendations,
     riskScore,
+    riskCategory,
+    assetAllocation,
+    keyTraits,
     error,
     isLoading,
     fetchResults,
     fetchRecommendations,
+    fetchInvestmentProfile,
+    loadInvestmentProfileFromStorage,
     calculateRiskScore,
     resetResults
   }

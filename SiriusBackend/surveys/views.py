@@ -8,6 +8,8 @@ from .serializers import (
     QuestionnaireSerializer,
     SurveySubmitSerializer
 )
+from .risk_calculator import calculate_risk_score
+from recommendations.models import InvestmentProfile
 
 
 @extend_schema_view(
@@ -76,14 +78,15 @@ class SurveySubmitView(APIView):
             201: {'type': 'object', 'properties': {
                 'success': {'type': 'boolean'},
                 'questionnaire_id': {'type': 'integer'},
-                'message': {'type': 'string'}
+                'message': {'type': 'string'},
+                'risk_profile': {'type': 'object'}
             }}
         }
     )
     def post(self, request):
         """
         Submit survey responses for the current user.
-        Creates a Questionnaire with QuestionAnswer records.
+        Creates a Questionnaire with QuestionAnswer records and calculates risk profile.
         """
         serializer = SurveySubmitSerializer(data=request.data)
         if not serializer.is_valid():
@@ -137,11 +140,28 @@ class SurveySubmitView(APIView):
         # Bulk create all answers
         QuestionAnswer.objects.bulk_create(answer_objects)
 
+        # Calculate risk profile using the risk calculator
+        risk_profile = calculate_risk_score(answers_data)
+
+        # Update or create investment profile for the user
+        # This ensures only the latest result is stored per user
+        investment_profile, created = InvestmentProfile.objects.update_or_create(
+            user=user,
+            defaults={
+                'risk_score': risk_profile['risk_score'],
+                'risk_category': risk_profile['risk_category'],
+                'asset_allocation': risk_profile['asset_allocation'],
+                'recommendations': risk_profile['recommendations'],
+                'key_traits': risk_profile['key_traits']
+            }
+        )
+
         return Response({
             'success': True,
             'questionnaire_id': questionnaire.id,
             'message': 'Survey submitted successfully',
-            'answers_count': len(answers_data)
+            'answers_count': len(answers_data),
+            'risk_profile': risk_profile
         }, status=status.HTTP_201_CREATED)
 
 

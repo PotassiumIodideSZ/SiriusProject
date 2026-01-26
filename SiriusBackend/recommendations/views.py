@@ -1,7 +1,9 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from .models import Recommendation
-from .serializers import RecommendationSerializer
+from .models import Recommendation, InvestmentProfile
+from .serializers import RecommendationSerializer, InvestmentProfileSerializer
 
 
 @extend_schema_view(
@@ -32,3 +34,34 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         Automatically set user to current authenticated user.
         """
         serializer.save(user=self.request.user)
+
+
+class InvestmentProfileView(APIView):
+    """
+    API view to retrieve the current user's investment profile.
+    Returns the latest risk analysis and recommendations.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary='Get user investment profile',
+        tags=['Recommendations'],
+        responses={
+            200: InvestmentProfileSerializer,
+            404: {'description': 'No investment profile found'}
+        }
+    )
+    def get(self, request):
+        """
+        Return the current user's investment profile.
+        If no profile exists, returns 404.
+        """
+        try:
+            profile = InvestmentProfile.objects.get(user=request.user)
+            serializer = InvestmentProfileSerializer(profile)
+            return Response(serializer.data)
+        except InvestmentProfile.DoesNotExist:
+            return Response(
+                {'error': 'No investment profile found. Please complete the survey first.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
