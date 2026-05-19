@@ -159,7 +159,7 @@ class SurveySubmitView(APIView):
         return Response({
             'success': True,
             'questionnaire_id': questionnaire.id,
-            'message': 'Survey submitted successfully',
+            'message': 'Анкета успешно отправлена',
             'answers_count': len(answers_data),
             'risk_profile': risk_profile
         }, status=status.HTTP_201_CREATED)

@@ -1,22 +1,24 @@
 """
 Risk Calculator Module
 
-This module provides formula-based risk score calculation from questionnaire answers.
-This is a placeholder implementation that will be replaced with AI-based calculation
-in the future. The current implementation uses a weighted formula approach.
-
-TODO: Replace with AI service integration when available.
+This module provides AI-based risk score calculation from questionnaire answers
+using the Polza AI API (DeepSeek model). It includes validation, normalization,
+and a retry mechanism for robustness.
 """
 
+import json
+import logging
+import requests
+import time
 from typing import List, Dict, Any
+from django.conf import settings
+from .models import SurveyQuestion
 
+logger = logging.getLogger(__name__)
 
 def calculate_risk_score(answers: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Calculate risk score from questionnaire answers.
-    
-    This is a placeholder implementation using a weighted formula.
-    In the future, this will be replaced with AI-based analysis.
+    Calculate risk score from questionnaire answers using AI.
     
     Args:
         answers: List of dictionaries containing question_id and answer_value
@@ -29,12 +31,200 @@ def calculate_risk_score(answers: List[Dict[str, Any]]) -> Dict[str, Any]:
         - asset_allocation: Dict with percentage allocations
         - recommendations: List of recommendation strings
         - key_traits: List of trait strings
+    """
+    return _calculate_risk_score_with_ai(answers)
+
+
+def _build_ai_prompt(answers: List[Dict[str, Any]]) -> tuple:
+    """Build the system and user prompts for the AI."""
     
-    Question Groups:
-    - Logic & Reasoning (Questions 1-7): Higher scores = more analytical approach
-    - Emotional Control (Questions 8-12): Higher scores = better emotional stability
-    - Independence (Questions 13-17): Higher scores = more independent decision-making
-    - Willpower & Leadership (Questions 18-23): Higher scores = stronger character
+    system_prompt = """Ты — ведущий финансовый советник и эксперт по поведенческой экономике. Твоя задача — проанализировать психологический профиль клиента на основе его ответов на тест и выдать строго структурированный JSON с инвестиционным профилем.
+    
+ВАЖНО: Отвечай ТОЛЬКО валидным JSON-объектом, без Markdown-разметки (без ```json), без пояснительного текста до или после JSON.
+
+Структура JSON должна быть строго такой:
+{
+  "risk_score": <число от 0 до 100>,
+  "risk_category": "<строго одно из: Conservative, Moderate, Growth, Aggressive>",
+  "asset_allocation": {
+    "stocks": <число, %>,
+    "bonds": <число, %>,
+    "cash": <число, %>,
+    "alternatives": <число, %>
+  },
+  "recommendations": [
+    "<персонализированный совет 1>",
+    "<совет 2>",
+    "<совет 3>",
+    "<совет 4>",
+    "<совет 5>"
+  ],
+  "key_traits": [
+    "<психологическая черта 1>",
+    "<черта 2>",
+    "<черта 3>",
+    "<черта 4>"
+  ]
+}
+
+Правила расчета:
+1. risk_score: высчитывается на основе толерантности к риску. Учитывай логику, эмоциональный контроль, независимость и силу воли.
+2. risk_category:
+   - 0-30: Conservative
+   - 31-60: Moderate
+   - 61-80: Growth
+   - 81-100: Aggressive
+3. asset_allocation: Сумма значений stocks + bonds + cash + alternatives ДОЛЖНА БЫТЬ РОВНО 100.
+4. recommendations: 5 предложений. Тон: профессиональный, персонализированный на основе ответов. Без эмодзи.
+5. key_traits: 4 психологических характеристики клиента, вытекающие из его ответов."""
+
+    # Fetch question texts
+    question_ids = [a['question_id'] for a in answers]
+    questions_map = {q.id: q.text for q in SurveyQuestion.objects.filter(id__in=question_ids)}
+    
+    user_prompt = "Пользователь ответил на тест. Шкала: 1 — Категорически не согласен, 5 — Полностью согласен (если вопрос подразумевает степень согласия). Вот его ответы:\n\n"
+    
+    for answer in answers:
+        q_id = answer['question_id']
+        val = answer['answer_value']
+        text = questions_map.get(q_id, f"Вопрос {q_id}")
+        user_prompt += f"- Вопрос: \"{text}\" -> Ответ: {val}\n"
+        
+    user_prompt += "\nСформируй JSON-профиль на основе этих данных."
+    
+    return system_prompt, user_prompt
+
+
+def _validate_and_normalize_ai_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and normalize the AI JSON response."""
+    
+    # Check required keys
+    required_keys = ['risk_score', 'risk_category', 'asset_allocation', 'recommendations', 'key_traits']
+    for key in required_keys:
+        if key not in data:
+            raise ValueError(f"Missing required key in AI response: {key}")
+            
+    # Normalize risk_score
+    try:
+        score = int(data['risk_score'])
+        data['risk_score'] = max(0, min(100, score))
+    except (ValueError, TypeError):
+        raise ValueError("risk_score must be an integer")
+        
+    # Normalize risk_category
+    valid_categories = ['Conservative', 'Moderate', 'Growth', 'Aggressive']
+    if data['risk_category'] not in valid_categories:
+        # Try to infer from score if category is invalid
+        score = data['risk_score']
+        if score <= 30: data['risk_category'] = 'Conservative'
+        elif score <= 60: data['risk_category'] = 'Moderate'
+        elif score <= 80: data['risk_category'] = 'Growth'
+        else: data['risk_category'] = 'Aggressive'
+        
+    # Normalize asset_allocation
+    alloc = data.get('asset_allocation', {})
+    required_assets = ['stocks', 'bonds', 'cash', 'alternatives']
+    total = 0
+    
+    # Ensure all keys exist and are numbers
+    for asset in required_assets:
+        try:
+            val = float(alloc.get(asset, 0))
+            alloc[asset] = val
+            total += val
+        except (ValueError, TypeError):
+            alloc[asset] = 0
+            
+    # Normalize to 100%
+    if total == 0:
+        alloc = {'stocks': 45, 'bonds': 35, 'cash': 15, 'alternatives': 5}
+    elif abs(total - 100) > 0.1:
+        for asset in required_assets:
+            alloc[asset] = round((alloc[asset] / total) * 100)
+            
+        # Fix rounding errors to make exact 100
+        current_total = sum(alloc.values())
+        if current_total != 100:
+            diff = 100 - current_total
+            # Add difference to the largest asset class
+            largest_asset = max(alloc.keys(), key=lambda k: alloc[k])
+            alloc[largest_asset] += diff
+            
+    data['asset_allocation'] = alloc
+    
+    # Ensure lists are lists
+    if not isinstance(data.get('recommendations'), list):
+        data['recommendations'] = ["Обратитесь к финансовому консультанту для детального плана."]
+    if not isinstance(data.get('key_traits'), list):
+        data['key_traits'] = ["Требуется дополнительный анализ"]
+        
+    return data
+
+
+def _calculate_risk_score_with_ai(answers: List[Dict[str, Any]], max_retries: int = 3) -> Dict[str, Any]:
+    """Call Polza AI API with retry logic."""
+    
+    if not settings.POLZA_API_KEY:
+        logger.warning("POLZA_API_KEY not set. Using fallback calculation.")
+        return _fallback_calculate_risk_score(answers)
+        
+    system_prompt, user_prompt = _build_ai_prompt(answers)
+    
+    headers = {
+        "Authorization": f"Bearer {settings.POLZA_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": settings.POLZA_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.2, # Low temperature for more consistent, JSON-compliant output
+        # Some models support response_format, adding it if supported by Polza/DeepSeek API
+        "response_format": {"type": "json_object"}
+    }
+    
+    url = f"{settings.POLZA_BASE_URL.rstrip('/')}/chat/completions"
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Calling AI API (attempt {attempt + 1}/{max_retries})")
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            
+            result_json = response.json()
+            content = result_json['choices'][0]['message']['content'].strip()
+            
+            # Clean up potential markdown formatting if the model ignored the system prompt
+            if content.startswith('```json'):
+                content = content[7:]
+            if content.endswith('```'):
+                content = content[:-3]
+            content = content.strip()
+            
+            parsed_data = json.loads(content)
+            
+            # Validate and normalize
+            validated_data = _validate_and_normalize_ai_response(parsed_data)
+            logger.info("AI risk score calculation successful")
+            return validated_data
+            
+        except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError) as e:
+            logger.warning(f"AI calculation failed on attempt {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                # Wait before retrying
+                time.sleep(1.5 * (attempt + 1))
+            else:
+                logger.error("All AI calculation attempts failed. Using fallback.")
+                return _fallback_calculate_risk_score(answers)
+
+
+def _fallback_calculate_risk_score(answers: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Fallback formula-based calculation in case AI completely fails.
+    (This is the original implementation)
     """
     
     # Initialize scores for each category
@@ -178,39 +368,39 @@ def _generate_recommendations(risk_category: str) -> List[str]:
     """
     recommendations = {
         'Conservative': [
-            'Prioritize capital preservation over high returns',
-            'Focus on government bonds and high-quality corporate bonds',
-            'Maintain significant cash reserves for liquidity',
-            'Consider dividend-paying blue-chip stocks',
-            'Avoid speculative investments and high-volatility assets',
-            'Regular portfolio rebalancing to maintain conservative allocation'
+            'Приоритет сохранения капитала над высокой доходностью',
+            'Сосредоточьтесь на государственных облигациях и высококачественных корпоративных облигациях',
+            'Поддерживайте значительные денежные резервы для ликвидности',
+            'Рассмотрите дивидендные акции крупных компаний (blue-chip)',
+            'Избегайте спекулятивных инвестиций и высоковолатильных активов',
+            'Регулярная ребалансировка портфеля для сохранения консервативного распределения'
         ],
         'Moderate': [
-            'Maintain balanced approach between growth and stability',
-            'Diversify across different asset classes',
-            'Include mix of growth and value stocks',
-            'Invest in both government and corporate bonds',
-            'Keep moderate cash reserves for opportunities',
-            'Consider index funds for broad market exposure',
-            'Review portfolio quarterly and rebalance annually'
+            'Поддерживайте сбалансированный подход между ростом и стабильностью',
+            'Диверсифицируйте портфель по разным классам активов',
+            'Включите смесь акций роста и акций стоимости',
+            'Инвестируйте как в государственные, так и в корпоративные облигации',
+            'Поддерживайте умеренные денежные резервы для возможностей',
+            'Рассмотрите индексные фонды для широкого охвата рынка',
+            'Проверяйте портфель ежеквартально и ребалансируйте ежегодно'
         ],
         'Growth': [
-            'Focus on capital appreciation with moderate risk',
-            'Allocate significant portion to growth stocks',
-            'Include emerging market investments',
-            'Consider sector-specific ETFs for targeted exposure',
-            'Maintain smaller cash position for tactical opportunities',
-            'Use dollar-cost averaging for regular investments',
-            'Monitor market conditions and adjust allocation accordingly'
+            'Сосредоточьтесь на приросте капитала с умеренным риском',
+            'Выделите значительную часть в акции роста',
+            'Включите инвестиции в развивающиеся рынки',
+            'Рассмотрите отраслевые ETF для целевого экспонирования',
+            'Поддерживайте меньшую денежную позицию для тактических возможностей',
+            'Используйте усреднение долларовой стоимости для регулярных инвестиций',
+            'Следите за рыночными условиями и корректируйте распределение соответствующим образом'
         ],
         'Aggressive': [
-            'Maximize growth potential with high-risk tolerance',
-            'Heavy allocation to equities and growth stocks',
-            'Include small-cap and international stocks',
-            'Consider alternative investments (crypto, startups, etc.)',
-            'Use leverage cautiously for enhanced returns',
-            'Active trading and market timing strategies',
-            'Accept higher volatility for potential higher returns'
+            'Максимизируйте потенциал роста с высокой толерантностью к риску',
+            'Значительное распределение в акции и акции роста',
+            'Включите акции малого капитала и международные акции',
+            'Рассмотрите альтернативные инвестиции (криптовалюта, стартапы и т.д.)',
+            'Используйте кредитное плечо с осторожностью для повышения доходности',
+            'Активная торговля и стратегии рыночного тайминга',
+            'Примите более высокую волатильность ради потенциально более высокой доходности'
         ]
     }
     
@@ -239,55 +429,39 @@ def _generate_key_traits(
     
     # Logic traits
     if logic_avg >= 70:
-        traits.append('Analytical thinker')
+        traits.append('Аналитический мыслитель')
     elif logic_avg >= 40:
-        traits.append('Balanced decision-maker')
+        traits.append('Сбалансированный принимающий решения')
     else:
-        traits.append('Intuitive decision-maker')
+        traits.append('Интуитивный принимающий решения')
     
     # Emotional traits
     if emotional_avg >= 70:
-        traits.append('Emotionally stable')
+        traits.append('Эмоционально стабильный')
     elif emotional_avg >= 40:
-        traits.append('Moderately emotional')
+        traits.append('Умеренно эмоциональный')
     else:
-        traits.append('Emotionally reactive')
+        traits.append('Эмоционально реактивный')
     
     # Independence traits
     if independence_avg >= 70:
-        traits.append('Independent decision-maker')
+        traits.append('Самостоятельно принимающий решения')
     elif independence_avg >= 40:
-        traits.append('Semi-independent')
+        traits.append('Полусамостоятельный')
     else:
-        traits.append('Seeks external validation')
+        traits.append('Ищет внешнего подтверждения')
     
     # Willpower traits
     if willpower_avg >= 70:
-        traits.append('Strong determination')
+        traits.append('Сильная решимость')
     elif willpower_avg >= 40:
-        traits.append('Moderate persistence')
+        traits.append('Умеренное упорство')
     else:
-        traits.append('Needs motivation support')
+        traits.append('Нуждается в мотивационной поддержке')
     
     return traits
 
-
-# TODO: This function will be replaced with AI service call in the future
+# The calculate_risk_score_with_ai is now the main entry point via _calculate_risk_score_with_ai
+# keeping this for backwards compatibility if any other module imports it directly
 def calculate_risk_score_with_ai(answers: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Placeholder for AI-based risk score calculation.
-    
-    This function will be implemented when AI service is integrated.
-    It will call the AI service to analyze answers and generate
-    personalized investment recommendations.
-    
-    Args:
-        answers: List of dictionaries containing question_id and answer_value
-    
-    Returns:
-        Dictionary with risk analysis results (same format as calculate_risk_score)
-    
-    TODO: Implement AI service integration
-    """
-    # For now, fall back to formula-based calculation
     return calculate_risk_score(answers)

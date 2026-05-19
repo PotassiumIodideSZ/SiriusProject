@@ -62,6 +62,6 @@ class InvestmentProfileView(APIView):
             return Response(serializer.data)
         except InvestmentProfile.DoesNotExist:
             return Response(
-                {'error': 'No investment profile found. Please complete the survey first.'},
+                {'error': 'Инвестиционный профиль не найден. Пожалуйста, сначала пройдите опрос.'},
                 status=status.HTTP_404_NOT_FOUND
             )

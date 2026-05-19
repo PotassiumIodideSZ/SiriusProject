@@ -84,4 +84,4 @@ class QuestionAnswer(models.Model):
         """Validate that answer_value is between 1 and 5."""
         from django.core.exceptions import ValidationError
         if not 1 <= self.answer_value <= 5:
-            raise ValidationError({'answer_value': 'Answer value must be between 1 and 5'})
+            raise ValidationError({'answer_value': 'Значение ответа должно быть от 1 до 5'})

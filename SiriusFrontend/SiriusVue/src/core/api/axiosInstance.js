@@ -7,7 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 10000
+  timeout: 60000 // Увеличен таймаут до 60 секунд для ожидания ответа от ИИ
 })
 
 // Request interceptor - добавляет токен к запросам

@@ -32,7 +32,7 @@
           <!-- Инвестиционный профиль -->
           <div class="bg-[#232323] rounded-lg p-6 mb-4">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold text-white">📊 Ваш инвестиционный профиль</h3>
+              <h3 class="text-lg font-semibold text-white">Ваш инвестиционный профиль</h3>
             </div>
             
             <!-- Если профиль не загружен или пуст -->

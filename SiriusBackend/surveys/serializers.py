@@ -50,7 +50,7 @@ class QuestionAnswerCreateSerializer(serializers.ModelSerializer):
         """Validate that answer_value is between 1 and 5."""
         if not isinstance(value, int) or value < 1 or value > 5:
             raise serializers.ValidationError(
-                "Answer value must be an integer between 1 and 5"
+                "Значение ответа должно быть целым числом от 1 до 5"
             )
         return value
 
@@ -68,29 +68,29 @@ class SurveySubmitSerializer(serializers.Serializer):
     def validate_answers(self, value):
         """Validate that answers is a valid list with correct structure."""
         if not isinstance(value, list):
-            raise serializers.ValidationError("Answers must be a list")
+            raise serializers.ValidationError("Ответы должны быть списком")
         
         if len(value) == 0:
-            raise serializers.ValidationError("At least one answer is required")
+            raise serializers.ValidationError("Требуется хотя бы один ответ")
         
         # Check for duplicate question IDs
         question_ids = []
         for answer in value:
             if not isinstance(answer, dict):
-                raise serializers.ValidationError("Each answer must be an object")
+                raise serializers.ValidationError("Каждый ответ должен быть объектом")
             
             if 'question_id' not in answer or 'answer_value' not in answer:
                 raise serializers.ValidationError(
-                    "Each answer must contain 'question_id' and 'answer_value'"
+                    "Каждый ответ должен содержать 'question_id' и 'answer_value'"
                 )
             
             question_id = answer['question_id']
             if not isinstance(question_id, int):
-                raise serializers.ValidationError("question_id must be an integer")
+                raise serializers.ValidationError("question_id должен быть целым числом")
             
             if question_id in question_ids:
                 raise serializers.ValidationError(
-                    f"Duplicate question_id: {question_id}"
+                    f"Дубликат question_id: {question_id}"
                 )
             question_ids.append(question_id)
         

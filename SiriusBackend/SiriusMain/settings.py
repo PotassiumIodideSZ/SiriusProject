@@ -10,11 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables from .env file
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -177,4 +181,10 @@ ACCOUNT_EMAIL_VERIFICATION = 'none'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
+# Authentication settings
 AUTH_USER_MODEL = 'authentication.User'
+
+# Polza AI Settings
+POLZA_API_KEY = os.getenv('POLZA_API_KEY')
+POLZA_BASE_URL = os.getenv('POLZA_BASE_URL', 'https://polza.ai/api/v1')
+POLZA_MODEL = os.getenv('POLZA_MODEL', 'deepseek/deepseek-v4-flash')
