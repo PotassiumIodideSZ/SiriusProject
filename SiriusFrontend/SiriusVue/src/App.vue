@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#0F0F0F] flex flex-col relative overflow-hidden">
+  <div class="min-h-screen bg-paper-100 flex flex-col relative overflow-hidden">
     <TheHeader class="relative z-10" />
     <main class="flex-1 relative z-10">
       <router-view />

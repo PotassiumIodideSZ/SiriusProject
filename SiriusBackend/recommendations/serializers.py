@@ -15,7 +15,7 @@ class RecommendationSerializer(serializers.ModelSerializer):
 class InvestmentProfileSerializer(serializers.ModelSerializer):
     """
     Serializer for InvestmentProfile model.
-    Returns the complete investment profile with risk analysis.
+    Returns the complete investment profile with cognitive radar and archetype.
     """
     class Meta:
         model = InvestmentProfile
@@ -24,6 +24,9 @@ class InvestmentProfileSerializer(serializers.ModelSerializer):
             'user',
             'risk_score',
             'risk_category',
+            'archetype',
+            'radar_scores',
+            'behavioral_traps',
             'asset_allocation',
             'recommendations',
             'key_traits',

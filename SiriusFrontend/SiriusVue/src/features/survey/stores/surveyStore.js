@@ -52,12 +52,17 @@ export const useSurveyStore = defineStore('survey', () => {
     answers.value[currentQuestionIndex.value] = answer
   }
 
+  const pollingStatus = ref(null)
+  const isCalculating = ref(false)
+
   const finishSurvey = async () => {
     try {
       isLoading.value = true
+      isCalculating.value = true
+      pollingStatus.value = 'Отправка ответов на сервер...'
       error.value = null
       
-      // Transform answers to new format: [{question_id: 1, answer_value: 5}, ...]
+      // Transform answers to format: [{question_id: 1, answer_value: 5}, ...]
       const answersArray = []
       questions.value.forEach((question, index) => {
         answersArray.push({
@@ -67,21 +72,58 @@ export const useSurveyStore = defineStore('survey', () => {
       })
       
       const result = await surveyAPI.submitSurvey(answersArray)
-      isCompleted.value = true
-      
-      // Store the risk profile data for the results page
-      if (result.risk_profile) {
-        localStorage.setItem('riskProfile', JSON.stringify(result.risk_profile))
+      const qId = result.questionnaire_id
+
+      if (!qId) {
+        throw new Error('Не получен идентификатор анкеты')
       }
-      
+
+      // Start polling
+      pollingStatus.value = 'Запущен ИИ-анализ инвестиционного профиля...'
+      const maxAttempts = 30
+      let attempts = 0
+      let completedProfile = null
+
+      while (attempts < maxAttempts) {
+        attempts++
+        if (attempts === 2) {
+          pollingStatus.value = 'Изучение финансовой емкости и горизонта...'
+        } else if (attempts === 4) {
+          pollingStatus.value = 'Стресс-тестирование психологической стойкости...'
+        } else if (attempts === 7) {
+          pollingStatus.value = 'Построение когнитивной радар-карты и портфеля...'
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        try {
+          const statusData = await surveyAPI.getSurveyStatus(qId)
+          if (statusData.is_completed) {
+            completedProfile = statusData.profile
+            break
+          } else if (statusData.status === 'FAILED') {
+            throw new Error(statusData.error_message || 'Ошибка расчета на сервере')
+          }
+        } catch (pollErr) {
+          console.warn('Ошибка поллинга (повтор):', pollErr)
+        }
+      }
+
+      if (completedProfile) {
+        localStorage.setItem('riskProfile', JSON.stringify(completedProfile))
+      }
+
+      isCompleted.value = true
       router.push('/results')
       return result
     } catch (err) {
-      error.value = err.response?.data?.detail || 'Произошла ошибка при отправке опроса'
+      error.value = err.response?.data?.error || err.message || 'Произошла ошибка при обработке опроса'
       console.error('Ошибка при отправке опроса:', err)
       throw err
     } finally {
       isLoading.value = false
+      isCalculating.value = false
+      pollingStatus.value = null
     }
   }
 
@@ -97,6 +139,8 @@ export const useSurveyStore = defineStore('survey', () => {
     currentQuestionIndex,
     answers,
     isLoading,
+    isCalculating,
+    pollingStatus,
     isCompleted,
     error,
     currentQuestion,

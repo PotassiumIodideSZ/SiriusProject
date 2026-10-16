@@ -51,3 +51,7 @@ Thumbs.db
 # Documentation (keep only BACKEND_GUIDE.md)
 !BACKEND_GUIDE.md
 plans/
+
+# Deploy archives
+_package/
+sirius_deploy.tar.gz

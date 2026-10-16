@@ -8,7 +8,7 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = SurveyQuestion
-        fields = ['id', 'text', 'order', 'is_enabled', 'created_at', 'updated_at']
+        fields = ['id', 'text', 'category', 'options', 'order', 'is_enabled', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
@@ -34,8 +34,8 @@ class QuestionnaireSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Questionnaire
-        fields = ['id', 'user', 'completed_at', 'answers_count', 'answers']
-        read_only_fields = ['id', 'user', 'completed_at']
+        fields = ['id', 'user', 'status', 'error_message', 'completed_at', 'answers_count', 'answers']
+        read_only_fields = ['id', 'user', 'status', 'error_message', 'completed_at']
 
 
 class QuestionAnswerCreateSerializer(serializers.ModelSerializer):

@@ -16,6 +16,9 @@ export function useProfile() {
   const keyTraits = computed(() => profileStore.keyTraits)
   const recommendations = computed(() => profileStore.recommendations)
   const assetAllocation = computed(() => profileStore.assetAllocation)
+  const archetype = computed(() => profileStore.archetype)
+  const radarScores = computed(() => profileStore.radarScores)
+  const behavioralTraps = computed(() => profileStore.behavioralTraps)
   
   const fetchProfile = async () => {
     await profileStore.fetchProfile()
@@ -50,6 +53,9 @@ export function useProfile() {
     keyTraits,
     recommendations,
     assetAllocation,
+    archetype,
+    radarScores,
+    behavioralTraps,
     fetchProfile,
     updateProfile,
     fetchHistory,

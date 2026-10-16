@@ -13,6 +13,10 @@ export function useResults() {
   const error = computed(() => resultsStore.error)
   const isLoading = computed(() => resultsStore.isLoading)
   
+  const archetype = computed(() => resultsStore.archetype)
+  const radarScores = computed(() => resultsStore.radarScores)
+  const behavioralTraps = computed(() => resultsStore.behavioralTraps)
+  
   const fetchResults = async (surveyId) => {
     await resultsStore.fetchResults(surveyId)
   }
@@ -44,6 +48,9 @@ export function useResults() {
     riskCategory,
     assetAllocation,
     keyTraits,
+    archetype,
+    radarScores,
+    behavioralTraps,
     error,
     isLoading,
     fetchResults,

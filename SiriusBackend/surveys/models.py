@@ -5,9 +5,22 @@ from authentication.models import User
 class SurveyQuestion(models.Model):
     """
     Model for storing survey questions that can be enabled/disabled.
+    Supports single-choice options with text and weight values.
     """
     text = models.CharField(max_length=500, verbose_name='Question text')
     order = models.IntegerField(default=0, verbose_name='Display order')
+    category = models.CharField(
+        max_length=50,
+        default='general',
+        verbose_name='Question Category',
+        help_text='e.g., horizon, capacity, stress, behavioral'
+    )
+    options = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Answer Options',
+        help_text='List of options: [{"value": 1, "text": "...", "score": 20}]'
+    )
     is_enabled = models.BooleanField(default=True, verbose_name='Is enabled')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
@@ -26,12 +39,25 @@ class Questionnaire(models.Model):
     Model for storing user's survey responses.
     Each questionnaire contains multiple QuestionAnswer records.
     """
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending (Calculation in progress)'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+    ]
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='questionnaires',
         verbose_name='User'
     )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='COMPLETED',
+        verbose_name='Calculation Status'
+    )
+    error_message = models.TextField(blank=True, null=True, verbose_name='Error message if failed')
     completed_at = models.DateTimeField(auto_now_add=True, verbose_name='Completed at')
 
     class Meta:
@@ -40,7 +66,7 @@ class Questionnaire(models.Model):
         ordering = ['-completed_at']
 
     def __str__(self):
-        return f'Questionnaire {self.id} - {self.user.username}'
+        return f'Questionnaire {self.id} - {self.user.username} ({self.status})'
     
     @property
     def answers_count(self):
@@ -67,7 +93,7 @@ class QuestionAnswer(models.Model):
     )
     answer_value = models.PositiveSmallIntegerField(
         verbose_name='Answer value',
-        help_text='Answer value between 1 and 5'
+        help_text='Answer value (e.g. 1-5 or option index)'
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
 
@@ -79,9 +105,3 @@ class QuestionAnswer(models.Model):
 
     def __str__(self):
         return f'Q{self.question.id}: {self.answer_value} (Questionnaire {self.questionnaire.id})'
-    
-    def clean(self):
-        """Validate that answer_value is between 1 and 5."""
-        from django.core.exceptions import ValidationError
-        if not 1 <= self.answer_value <= 5:
-            raise ValidationError({'answer_value': 'Значение ответа должно быть от 1 до 5'})

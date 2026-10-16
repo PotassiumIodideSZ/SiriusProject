@@ -9,6 +9,9 @@ export const useResultsStore = defineStore('results', () => {
   const riskCategory = ref('')
   const assetAllocation = ref(null)
   const keyTraits = ref([])
+  const archetype = ref(null)
+  const radarScores = ref(null)
+  const behavioralTraps = ref([])
   const error = ref(null)
   const isLoading = ref(false)
 
@@ -54,6 +57,9 @@ export const useResultsStore = defineStore('results', () => {
       recommendations.value = data.recommendations || []
       assetAllocation.value = data.asset_allocation || null
       keyTraits.value = data.key_traits || []
+      archetype.value = data.archetype || null
+      radarScores.value = data.radar_scores || null
+      behavioralTraps.value = data.behavioral_traps || []
       
       return data
     } catch (err) {
@@ -74,6 +80,9 @@ export const useResultsStore = defineStore('results', () => {
       recommendations.value = profile.recommendations || []
       assetAllocation.value = profile.asset_allocation || null
       keyTraits.value = profile.key_traits || []
+      archetype.value = profile.archetype || null
+      radarScores.value = profile.radar_scores || null
+      behavioralTraps.value = profile.behavioral_traps || []
       return true
     }
     return false
@@ -105,6 +114,9 @@ export const useResultsStore = defineStore('results', () => {
     riskCategory,
     assetAllocation,
     keyTraits,
+    archetype,
+    radarScores,
+    behavioralTraps,
     error,
     isLoading,
     fetchResults,

@@ -51,6 +51,24 @@ class InvestmentProfile(models.Model):
         ],
         verbose_name='Risk category'
     )
+    archetype = models.JSONField(
+        verbose_name='Investor Archetype',
+        blank=True,
+        null=True,
+        help_text='{"title": "Стратегический капиталист", "description": "..."}'
+    )
+    radar_scores = models.JSONField(
+        verbose_name='Cognitive Radar Scores',
+        blank=True,
+        null=True,
+        help_text='{"capacity": 80, "stress_resistance": 65, "fomo_control": 70, "discipline": 75}'
+    )
+    behavioral_traps = models.JSONField(
+        verbose_name='Behavioral Traps & Biases',
+        blank=True,
+        null=True,
+        help_text='List of identified biases and warning rules'
+    )
     asset_allocation = models.JSONField(
         verbose_name='Asset allocation',
         help_text='JSON object with allocation percentages: {"stocks": 60, "bonds": 25, "cash": 10, "alternatives": 5}'

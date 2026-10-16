@@ -35,6 +35,9 @@ export function useSurvey() {
     return await surveyStore.finishSurvey()
   }
   
+  const isCalculating = computed(() => surveyStore.isCalculating)
+  const pollingStatus = computed(() => surveyStore.pollingStatus)
+  
   return {
     questions,
     currentQuestion,
@@ -42,6 +45,8 @@ export function useSurvey() {
     progress,
     answers,
     isLoading,
+    isCalculating,
+    pollingStatus,
     isLastQuestion,
     canMoveNext,
     error,

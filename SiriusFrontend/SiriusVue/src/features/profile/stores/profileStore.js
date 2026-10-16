@@ -15,6 +15,9 @@ export const useProfileStore = defineStore('profile', () => {
   const keyTraits = ref([])
   const recommendations = ref([])
   const assetAllocation = ref({})
+  const archetype = ref(null)
+  const radarScores = ref(null)
+  const behavioralTraps = ref([])
 
   const riskScore = computed(() => {
     // Try to get from investment profile first, then from stats
@@ -93,6 +96,9 @@ export const useProfileStore = defineStore('profile', () => {
       keyTraits.value = data.key_traits || []
       recommendations.value = data.recommendations || []
       assetAllocation.value = data.asset_allocation || {}
+      archetype.value = data.archetype || null
+      radarScores.value = data.radar_scores || null
+      behavioralTraps.value = data.behavioral_traps || []
     } catch (err) {
       // If profile not found (404), it's okay - user hasn't taken the test yet
       if (err.response?.status === 404) {
@@ -101,6 +107,9 @@ export const useProfileStore = defineStore('profile', () => {
         keyTraits.value = []
         recommendations.value = []
         assetAllocation.value = {}
+        archetype.value = null
+        radarScores.value = null
+        behavioralTraps.value = []
       } else {
         error.value = err.response?.data || 'Ошибка при получении инвестиционного профиля'
         console.error('Ошибка при получении инвестиционного профиля:', err)
@@ -121,6 +130,9 @@ export const useProfileStore = defineStore('profile', () => {
     keyTraits,
     recommendations,
     assetAllocation,
+    archetype,
+    radarScores,
+    behavioralTraps,
     riskScore,
     surveysCompleted,
     fetchProfile,

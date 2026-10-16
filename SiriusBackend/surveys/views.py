@@ -64,9 +64,56 @@ class SurveyQuestionListView(APIView):
         })
 
 
+import threading
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _run_async_calculation(questionnaire_id, user_id, answers_data):
+    """Background worker function for asynchronous LLM/fallback calculation."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        questionnaire = Questionnaire.objects.get(id=questionnaire_id)
+        user = User.objects.get(id=user_id)
+
+        risk_profile = calculate_risk_score(answers_data)
+
+        # Update or create investment profile for the user
+        InvestmentProfile.objects.update_or_create(
+            user=user,
+            defaults={
+                'risk_score': risk_profile['risk_score'],
+                'risk_category': risk_profile['risk_category'],
+                'archetype': risk_profile.get('archetype'),
+                'radar_scores': risk_profile.get('radar_scores'),
+                'behavioral_traps': risk_profile.get('behavioral_traps'),
+                'asset_allocation': risk_profile['asset_allocation'],
+                'recommendations': risk_profile['recommendations'],
+                'key_traits': risk_profile['key_traits']
+            }
+        )
+
+        questionnaire.status = 'COMPLETED'
+        questionnaire.save(update_fields=['status'])
+        logger.info(f"Questionnaire {questionnaire_id} processed successfully.")
+    except Exception as e:
+        logger.exception(f"Error processing questionnaire {questionnaire_id}: {str(e)}")
+        try:
+            q = Questionnaire.objects.get(id=questionnaire_id)
+            q.status = 'FAILED'
+            q.error_message = str(e)
+            q.save(update_fields=['status', 'error_message'])
+        except Exception:
+            pass
+
+
 class SurveySubmitView(APIView):
     """
     API view to submit survey responses.
+    Creates questionnaire in PENDING status, queues async calculation,
+    and returns questionnaire_id for frontend polling.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -78,15 +125,15 @@ class SurveySubmitView(APIView):
             201: {'type': 'object', 'properties': {
                 'success': {'type': 'boolean'},
                 'questionnaire_id': {'type': 'integer'},
-                'message': {'type': 'string'},
-                'risk_profile': {'type': 'object'}
+                'status': {'type': 'string'},
+                'message': {'type': 'string'}
             }}
         }
     )
     def post(self, request):
         """
         Submit survey responses for the current user.
-        Creates a Questionnaire with QuestionAnswer records and calculates risk profile.
+        Creates Questionnaire with QuestionAnswer records, triggers background calculation.
         """
         serializer = SurveySubmitSerializer(data=request.data)
         if not serializer.is_valid():
@@ -104,65 +151,83 @@ class SurveySubmitView(APIView):
         
         invalid_ids = set(question_ids) - valid_question_ids
         if invalid_ids:
-            # Provide more detailed error information
-            disabled_questions = SurveyQuestion.objects.filter(id__in=question_ids, is_enabled=False)
-            disabled_ids = set(disabled_questions.values_list('id', flat=True))
-            missing_ids = invalid_ids - disabled_ids
-            
-            error_parts = []
-            if missing_ids:
-                error_parts.append(f'not found: {sorted(missing_ids)}')
-            if disabled_ids:
-                error_parts.append(f'disabled: {sorted(disabled_ids)}')
-            
             return Response(
-                {'error': f'Questions with ids {"; ".join(error_parts)}'},
+                {'error': f'Questions not found or disabled: {sorted(invalid_ids)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create a new questionnaire
-        questionnaire = Questionnaire.objects.create(user=user)
+        # Create a new questionnaire in PENDING status
+        questionnaire = Questionnaire.objects.create(user=user, status='PENDING')
 
         # Create QuestionAnswer records
-        answer_objects = []
-        for answer_data in answers_data:
-            question_id = answer_data['question_id']
-            answer_value = answer_data['answer_value']
-            
-            answer_objects.append(
-                QuestionAnswer(
-                    questionnaire=questionnaire,
-                    question_id=question_id,
-                    answer_value=answer_value
-                )
+        answer_objects = [
+            QuestionAnswer(
+                questionnaire=questionnaire,
+                question_id=answer['question_id'],
+                answer_value=answer['answer_value']
             )
-        
-        # Bulk create all answers
+            for answer in answers_data
+        ]
         QuestionAnswer.objects.bulk_create(answer_objects)
 
-        # Calculate risk profile using the risk calculator
-        risk_profile = calculate_risk_score(answers_data)
-
-        # Update or create investment profile for the user
-        # This ensures only the latest result is stored per user
-        investment_profile, created = InvestmentProfile.objects.update_or_create(
-            user=user,
-            defaults={
-                'risk_score': risk_profile['risk_score'],
-                'risk_category': risk_profile['risk_category'],
-                'asset_allocation': risk_profile['asset_allocation'],
-                'recommendations': risk_profile['recommendations'],
-                'key_traits': risk_profile['key_traits']
-            }
+        # Start calculation asynchronously in background thread
+        thread = threading.Thread(
+            target=_run_async_calculation,
+            args=(questionnaire.id, user.id, answers_data),
+            daemon=True
         )
+        thread.start()
 
         return Response({
             'success': True,
             'questionnaire_id': questionnaire.id,
-            'message': 'Анкета успешно отправлена',
-            'answers_count': len(answers_data),
-            'risk_profile': risk_profile
+            'status': 'PENDING',
+            'message': 'Анкета принята, расчет профиля запущен',
+            'answers_count': len(answers_data)
         }, status=status.HTTP_201_CREATED)
+
+
+class QuestionnaireStatusView(APIView):
+    """
+    Polling endpoint to check status of a questionnaire calculation.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary='Check questionnaire calculation status',
+        tags=['Surveys'],
+        responses={
+            200: {'type': 'object', 'properties': {
+                'id': {'type': 'integer'},
+                'status': {'type': 'string'},
+                'error_message': {'type': 'string'},
+                'is_completed': {'type': 'boolean'},
+                'profile': {'type': 'object'}
+            }}
+        }
+    )
+    def get(self, request, pk):
+        try:
+            questionnaire = Questionnaire.objects.get(id=pk, user=request.user)
+        except Questionnaire.DoesNotExist:
+            return Response({'error': 'Анкета не найдена'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = {
+            'id': questionnaire.id,
+            'status': questionnaire.status,
+            'is_completed': questionnaire.status == 'COMPLETED',
+            'error_message': questionnaire.error_message,
+        }
+
+        if questionnaire.status == 'COMPLETED':
+            try:
+                profile = InvestmentProfile.objects.get(user=request.user)
+                from recommendations.serializers import InvestmentProfileSerializer
+                data['profile'] = InvestmentProfileSerializer(profile).data
+            except InvestmentProfile.DoesNotExist:
+                pass
+
+        return Response(data)
 
 
 class SurveyHistoryView(APIView):

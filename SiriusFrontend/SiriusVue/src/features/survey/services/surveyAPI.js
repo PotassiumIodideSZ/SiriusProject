@@ -16,5 +16,10 @@ export const surveyAPI = {
   async getSurveyHistory() {
     const response = await api.get(API_ENDPOINTS.SURVEY.HISTORY)
     return response.data
+  },
+
+  async getSurveyStatus(questionnaireId) {
+    const response = await api.get(`/surveys/questionnaires/${questionnaireId}/status/`)
+    return response.data
   }
 }

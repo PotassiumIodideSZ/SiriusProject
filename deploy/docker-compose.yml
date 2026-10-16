@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  sirius-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sirius-backend
+    restart: unless-stopped
+    volumes:
+      - ./backend/db.sqlite3:/app/db.sqlite3
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-sirius-psy-secret-key-2026}
+      - POLZA_API_KEY=${POLZA_API_KEY}
+      - POLZA_BASE_URL=${POLZA_BASE_URL:-https://polza.ai/api/v1}
+      - POLZA_MODEL=${POLZA_MODEL:-deepseek/deepseek-v4-flash}
+    deploy:
+      resources:
+        limits:
+          memory: 130M
+    networks:
+      - ai_lead_hunter_app-network
+
+  sirius-web:
+    image: nginx:alpine
+    container_name: sirius-web
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    volumes:
+      - ./frontend_dist:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - sirius-backend
+    deploy:
+      resources:
+        limits:
+          memory: 30M
+    networks:
+      - ai_lead_hunter_app-network
+
+networks:
+  ai_lead_hunter_app-network:
+    external: true
